@@ -1,0 +1,25 @@
+# Painel Instituto Formare
+DirectoryIndex index.php
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Arquivos internos não podem ser abertos pelo navegador
+<FilesMatch "^(lib\.php|meta\.php|README\.md|\.git.*)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.(sqlite|sqlite-wal|sqlite-shm|db)$">
+  Require all denied
+</FilesMatch>
+RedirectMatch 404 /\.git
+RedirectMatch 404 /painel/dados(/.*)?$
+
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, nofollow"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Cache-Control "no-store"
+</IfModule>
