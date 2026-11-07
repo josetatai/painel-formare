@@ -12,7 +12,7 @@ if (!isset($abas[$aba])) $aba = 'paginas';
 $hoje = date('Y-m-d');
 $atalhos = ['hoje' => [$hoje, $hoje], 'ontem' => [date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('-1 day'))],
     '7d' => [date('Y-m-d', strtotime('-6 days')), $hoje], '30d' => [date('Y-m-d', strtotime('-29 days')), $hoje],
-    'mes' => [date('Y-m-01'), $hoje]];
+    'mes' => [date('Y-m-01'), $hoje], 'inicio' => [ajuste('inicio_campanhas', '2026-10-28'), $hoje]];
 $per = $_GET['per'] ?? '7d';
 if (isset($atalhos[$per])) {
     [$de, $ate] = $atalhos[$per];
@@ -48,8 +48,13 @@ if ($aba === 'ajustes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (trim((string)($_POST['meta_token'] ?? '')) !== '') salvar_ajuste('meta_token', trim((string)$_POST['meta_token']));
         $contas = preg_replace('/[^0-9,]/', '', (string)($_POST['meta_contas'] ?? ''));
         salvar_ajuste('meta_contas', $contas !== '' ? $contas : META_CONTAS_PADRAO);
-        db()->exec("DELETE FROM cache WHERE chave LIKE 'meta:%'");
+        db()->exec("DELETE FROM cache WHERE chave LIKE 'meta%'");
         $aviso = 'Dados da Meta salvos.';
+    } elseif ($acao === 'metas') {
+        $cm = str_replace(',', '.', preg_replace('/[^0-9,.]/', '', (string)($_POST['custo_max'] ?? '')));
+        if ($cm !== '' && (float)$cm > 0) salvar_ajuste('custo_max', (string)(float)$cm);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['inicio'] ?? ''))) salvar_ajuste('inicio_campanhas', $_POST['inicio']);
+        $aviso = 'Metas salvas.';
     } elseif ($acao === 'senha') {
         $atual = (string)($_POST['atual'] ?? '');
         $nova = (string)($_POST['nova'] ?? '');
@@ -85,7 +90,7 @@ cabecalho($abas[$aba]);
   <form class="card p-4 flex flex-wrap items-end gap-3" method="get">
     <input type="hidden" name="aba" value="<?= h($aba) ?>">
     <div class="flex flex-wrap gap-2">
-      <?php foreach (['hoje' => 'Hoje', 'ontem' => 'Ontem', '7d' => '7 dias', '30d' => '30 dias', 'mes' => 'Este mês'] as $k => $n): ?>
+      <?php foreach (['hoje' => 'Hoje', 'ontem' => 'Ontem', '7d' => '7 dias', '30d' => '30 dias', 'mes' => 'Este mês', 'inicio' => 'Desde o início'] as $k => $n): ?>
         <a href="?<?= h(http_build_query(['aba' => $aba, 'per' => $k])) ?>" class="tab <?= $per === $k ? 'tab-on' : 'tab-off ring-1 ring-navy/10' ?>"><?= $n ?></a>
       <?php endforeach; ?>
     </div>
@@ -220,11 +225,117 @@ cabecalho($abas[$aba]);
       <div class="card p-4"><p class="text-xs font-semibold text-navy/70"><?= $n ?></p><p class="font-display text-2xl text-navy mt-1"><?= $val ?></p></div>
     <?php endforeach; ?>
   </div>
-  <div class="card p-4 text-sm text-navy/80">
-    <strong>Kiwify no mesmo período:</strong> <?= numero($kiwPago['n']) ?> vendas pagas · <?= reais((int)$kiwPago['v']) ?>.
-    <?php if ($tot['gasto'] > 0): ?> Retorno sobre o gasto (vendas Kiwify ÷ gasto Meta): <strong><?= numero($kiwPago['v'] / 100 / $tot['gasto'], 2) ?>x</strong>.<?php endif; ?>
-    <span class="block text-xs text-navy/50 mt-1">*O alcance somado entre campanhas pode contar a mesma pessoa mais de uma vez. As vendas da Kiwify incluem as que não vieram de anúncio.</span>
+  <?php
+    $custoMax = (float)ajuste('custo_max', '85');
+    $kiw = q("SELECT COUNT(DISTINCT CASE WHEN situacao='Pago' THEN pedido END) pedidos, COUNT(CASE WHEN situacao='Pago' THEN 1 END) itens,
+              COALESCE(SUM(CASE WHEN situacao='Pago' THEN valor_centavos END),0) bruto, COALESCE(SUM(CASE WHEN situacao='Pago' THEN liquido_centavos END),0) liquido,
+              COUNT(CASE WHEN situacao='Pago' AND liquido_centavos IS NULL THEN 1 END) sem_liquido,
+              COUNT(CASE WHEN situacao='Aguardando pagamento' THEN 1 END) aguardando
+              FROM vendas WHERE criado_em BETWEEN ? AND ?", [$ini, $fim])[0];
+    $temKiwify = (int)q("SELECT COUNT(*) n FROM vendas")[0]['n'] > 0;
+    $kiwDesde = q("SELECT MIN(recebido_em) d FROM avisos_kiwify WHERE aceito = 1")[0]['d'];
+    $vendasPagas = $temKiwify ? (int)$kiw['pedidos'] : (int)$tot['compras'];
+    $liquido = $temKiwify ? $kiw['liquido'] / 100 : $tot['compras'] * $custoMax;
+    $g = $tot['gasto'];
+    $met = [
+        'cpm' => $tot['impressoes'] ? $g / $tot['impressoes'] * 1000 : null,
+        'ctr' => $tot['impressoes'] ? $tot['cliques_link'] / $tot['impressoes'] * 100 : null,
+        'cpc' => $tot['cliques_link'] ? $g / $tot['cliques_link'] : null,
+        'fin' => $tot['checkouts'] ? $vendasPagas / $tot['checkouts'] * 100 : null,
+        'cpv' => $vendasPagas ? $g / $vendasPagas : null,
+        'roas' => $g > 0 ? $liquido / $g : null,
+    ];
+    // Faixas (iguais às da skill painel-metricas-trafego-tatai). Custo por venda segue o custo máximo cadastrado.
+    $faixas = [
+        'cpm' => ['CPM', 'gasto ÷ impressões × 1000', 'menor', [40, 25, 15], 'R$', 'Preço do leilão para o seu público. Sobe sozinho em época concorrida (feriado, fim de ano), o que não significa que o anúncio piorou.'],
+        'ctr' => ['CTR do link', 'cliques no link ÷ impressões', 'maior', [0.8, 1.2, 1.8], '%', 'Campanha de Vendas tem CTR naturalmente mais baixo que Tráfego ou Engajamento. Não compare com esses objetivos.'],
+        'cpc' => ['CPC do link', 'gasto ÷ cliques no link', 'menor', [7, 4, 2], 'R$', 'É consequência do CPM e do CTR. Se estiver ruim, veja qual dos dois está puxando.'],
+        'fin' => ['Finalização do checkout', 'vendas pagas ÷ checkouts iniciados', 'maior', [15, 30, 45], '%', 'Queda forte aqui é problema de pagamento (Pix não gera, cartão recusa) ou de preço/oferta, não de anúncio.'],
+        'cpv' => ['Custo por venda', 'gasto ÷ vendas pagas', 'menor', [$custoMax, $custoMax * 0.765, $custoMax * 0.59], 'R$', 'Calculado sobre o valor líquido. Acima de ' . reais((int)round($custoMax * 100)) . ' a venda sai no prejuízo.'],
+        'roas' => ['ROAS líquido', 'receita líquida ÷ gasto', 'maior', [1.0, 1.3, 1.8], 'x', 'Usa o líquido real da Kiwify, somando as ofertas extras do checkout (que não aparecem no ROAS do Pixel).'],
+    ];
+    function fmt_m($v, $u) { return $u === 'R$' ? reais((int)round($v * 100)) : ($u === '%' ? numero($v, 2) . '%' : numero($v, 2)); }
+    function faixa_de($v, $sentido, $l) {
+        if ($v === null) return -1;
+        if ($sentido === 'menor') return $v > $l[0] ? 0 : ($v > $l[1] ? 1 : ($v > $l[2] ? 2 : 3));
+        return $v < $l[0] ? 0 : ($v < $l[1] ? 1 : ($v < $l[2] ? 2 : 3));
+    }
+    // Recomendação do dia (regras da skill)
+    $anuncios = $m['anuncios'] ?? [];
+    $comVenda = array_filter($anuncios, fn($a) => $a['compras'] > 0);
+    $fracos = array_filter($anuncios, fn($a) => $a['compras'] === 0 && $a['gasto'] >= $custoMax);
+    $alertas = $m['alertas'] ?? [];
+    if ($alertas) { $pos = ['Alerta', 'Há problema na conta ou em anúncios. Veja os alertas abaixo.', 'coral']; }
+    elseif ($g >= 2 * $custoMax && $vendasPagas === 0) { $pos = ['Ajustar', 'Já foram ' . reais((int)round($g * 100)) . ' sem nenhuma venda. Revise criativos e checkout.', 'coral']; }
+    elseif ($fracos && $comVenda) { $pos = ['Pausar algo', 'O anúncio "' . reset($fracos)['nome'] . '" gastou mais que o custo máximo sem vender, enquanto outro vende. Avalie pausar.', 'sun']; }
+    elseif ($vendasPagas > 0 && $met['cpv'] !== null && $met['cpv'] < $custoMax) { $pos = ['Manter', 'Custo por venda abaixo do máximo. Se ficar estável por 3 a 5 dias, considere subir 20% do orçamento.', 'leaf']; }
+    elseif ($g > 0) { $pos = ['Manter', 'Nada a fazer agora: deixe a campanha aprender.', 'leaf']; }
+    else { $pos = ['Sem gasto', 'Nenhum gasto de anúncio neste período.', 'navy']; }
+    $pequena = $vendasPagas < 5;
+    $cores = ['coral' => 'bg-coral text-white', 'sun' => 'bg-sun text-navy', 'leaf' => 'bg-leaf text-white', 'navy' => 'bg-navy text-white'];
+  ?>
+  <div class="card p-5 flex flex-wrap items-center gap-4">
+    <span class="rounded-full px-4 py-2 font-display text-xl <?= $cores[$pos[2]] ?>"><?= h($pos[0]) ?></span>
+    <div class="flex-1 min-w-[240px]">
+      <p class="font-semibold text-navy"><?= h($pos[1]) ?></p>
+      <?php if ($pequena && $g > 0): ?><p class="text-xs text-navy/60 mt-1">Amostra pequena (menos de 5 vendas): não tire conclusões fortes ainda.</p><?php endif; ?>
+    </div>
+    <button type="button" onclick="window.print()" class="btn2 no-print">Imprimir / salvar PDF</button>
   </div>
+  <?php foreach ($alertas as $al): ?><div class="card p-4 text-coral font-semibold">⚠ <?= h($al) ?></div><?php endforeach; ?>
+  <?php if ($kiwDesde && substr($kiwDesde, 0, 10) > $de): ?><div class="card p-4 text-sm text-[#a0680e] bg-[#fdf3e2]">O painel recebe as vendas da Kiwify desde <?= date('d/m/Y', strtotime($kiwDesde)) ?>. Vendas anteriores a essa data não entram nas contas de vendas, receita, custo por venda e ROAS deste período.</div><?php endif; ?>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <?php foreach ([['Vendas pagas' . ($temKiwify ? ' (Kiwify)' : ' (Pixel)'), numero($vendasPagas)], ['Receita líquida', reais((int)round($liquido * 100))],
+        ['Lucro estimado (líquido − gasto)', reais((int)round(($liquido - $g) * 100))], ['Aguardando pagamento', numero($kiw['aguardando'])]] as [$n, $val]): ?>
+      <div class="card p-4"><p class="text-xs font-semibold text-navy/70"><?= $n ?></p><p class="font-display text-2xl <?= str_starts_with($n, 'Lucro') && $liquido - $g < 0 ? 'text-coral' : 'text-navy' ?> mt-1"><?= $val ?></p></div>
+    <?php endforeach; ?>
+  </div>
+
+  <div class="card overflow-x-auto">
+    <table class="t faixas">
+      <tr><th>Métrica</th><th style="background:#c0392b;color:#fff">Ruim</th><th style="background:#d68910;color:#fff">Médio</th><th style="background:#2e8b57;color:#fff">Bom</th><th style="background:#1a6b3c;color:#fff">Ótimo</th><th>O que olhar</th></tr>
+      <?php foreach ($faixas as $k => [$nome, $sub, $sentido, $l, $u, $obs]):
+          $v = $met[$k]; $f = faixa_de($v, $sentido, $l);
+          $tx = $sentido === 'menor'
+              ? ['acima de ' . fmt_m($l[0], $u), fmt_m($l[1], $u) . ' – ' . fmt_m($l[0], $u), fmt_m($l[2], $u) . ' – ' . fmt_m($l[1], $u), 'abaixo de ' . fmt_m($l[2], $u)]
+              : ['abaixo de ' . fmt_m($l[0], $u), fmt_m($l[0], $u) . ' – ' . fmt_m($l[1], $u), fmt_m($l[1], $u) . ' – ' . fmt_m($l[2], $u), 'acima de ' . fmt_m($l[2], $u)];
+          $bg = ['bg-[#fdecea] text-[#a33025]', 'bg-[#fdf3e2] text-[#a0680e]', 'bg-[#e9f6ee] text-[#1f7a45]', 'bg-[#dcefe3] text-[#11532f]']; ?>
+        <tr>
+          <td class="font-bold text-navy"><?= $nome ?><span class="block text-xs font-normal text-navy/50"><?= $sub ?></span></td>
+          <?php for ($i = 0; $i < 4; $i++): ?>
+            <td class="<?= $bg[$i] ?> font-semibold"><?= $tx[$i] ?><?php if ($f === $i): ?><span class="block mt-1 rounded-md border-2 border-current px-2 py-0.5 font-extrabold">Seu: <?= fmt_m($v, $u) ?></span><?php endif; ?></td>
+          <?php endfor; ?>
+          <td class="text-xs text-navy/70"><?= $v === null ? '<strong>sem dado no período.</strong> ' : '' ?><?= h($obs) ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </table>
+    <p class="px-4 py-3 text-xs text-navy/50">Fonte das vendas: <?= $temKiwify ? 'vendas confirmadas na Kiwify (pedidos pagos; o líquido inclui as ofertas extras do checkout)' . ($kiw['sem_liquido'] ? '. Atenção: ' . $kiw['sem_liquido'] . ' venda(s) sem valor líquido informado' : '') : 'só Pixel (ainda não há vendas da Kiwify no painel); receita estimada pelo custo máximo' ?>. CPM, CTR, CPC e finalização são referências de mercado aproximadas.</p>
+  </div>
+
+  <div class="card p-4 text-sm text-navy/80">
+    <strong>Conferência Kiwify x Pixel:</strong>
+    <?php if (!$temKiwify): ?>ainda não há vendas da Kiwify no painel (ligue o webhook em Ajustes).
+    <?php elseif ((int)$kiw['pedidos'] === (int)$tot['compras']): ?>bateu: <?= numero($kiw['pedidos']) ?> vendas na Kiwify e <?= numero($tot['compras']) ?> compras atribuídas aos anúncios.
+    <?php else: ?><?= numero($kiw['pedidos']) ?> vendas pagas na Kiwify e <?= numero($tot['compras']) ?> compras atribuídas aos anúncios pela Meta. A diferença inclui vendas que não vieram de anúncio e compras que o Pixel não registrou (cartão costuma falhar mais que Pix).<?php endif; ?>
+  </div>
+
+  <?php if ($anuncios): ?>
+  <div class="card overflow-x-auto">
+    <h2 class="font-bold text-navy px-4 pt-4">Ranking dos anúncios</h2>
+    <table class="t mt-2">
+      <tr><th>Anúncio</th><th class="n">Gasto</th><th class="n">CTR</th><th class="n">Compras (Meta)</th><th class="n">Custo/compra</th><th>Leitura</th></tr>
+      <?php foreach ($anuncios as $an):
+          $ctrA = $an['impressoes'] ? $an['cliques_link'] / $an['impressoes'] * 100 : 0;
+          $cpa = $an['compras'] ? $an['gasto'] / $an['compras'] : null;
+          $leitura = $an['compras'] ? ($cpa <= $custoMax ? 'Vendendo dentro do custo máximo.' : 'Vende, mas acima do custo máximo.') : ($an['gasto'] >= $custoMax ? 'Gastou o custo máximo sem vender.' : 'Ainda sem venda; amostra pequena.'); ?>
+        <tr><td class="font-semibold text-navy"><?= h($an['nome']) ?><span class="block text-xs font-normal text-navy/50"><?= h($an['campanha']) ?></span></td>
+          <td class="n"><?= reais((int)round($an['gasto'] * 100)) ?></td><td class="n"><?= numero($ctrA, 2) ?>%</td><td class="n"><?= numero($an['compras']) ?></td>
+          <td class="n"><?= $cpa !== null ? reais((int)round($cpa * 100)) : '—' ?></td><td class="text-xs"><?= $leitura ?></td></tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+  <?php endif; ?>
 
   <div class="card overflow-x-auto">
     <table class="t">
@@ -376,7 +487,20 @@ cabecalho($abas[$aba]);
   </section>
 
   <section class="card p-5 sm:p-6">
-    <h2 class="font-display text-2xl text-navy">3. Trocar senha</h2>
+    <h2 class="font-display text-2xl text-navy">3. Metas do tráfego</h2>
+    <p class="mt-2 text-sm text-navy/70">Usadas na aba Campanhas para pintar as faixas e dar a recomendação do dia.</p>
+    <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
+      <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="metas">
+      <label class="grid gap-1 text-sm font-semibold text-navy">Custo máximo por venda (R$)
+        <input name="custo_max" inputmode="decimal" value="<?= h(numero((float)ajuste('custo_max', '85'), 2)) ?>"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy">Início das campanhas ("Desde o início")
+        <input name="inicio" type="date" value="<?= h(ajuste('inicio_campanhas', '2026-10-28')) ?>"></label>
+      <button class="btn !py-2">Salvar</button>
+    </form>
+  </section>
+
+  <section class="card p-5 sm:p-6">
+    <h2 class="font-display text-2xl text-navy">4. Trocar senha</h2>
     <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="senha">
       <label class="grid gap-1 text-sm font-semibold text-navy">Senha atual <input name="atual" type="password" autocomplete="current-password"></label>

@@ -231,6 +231,13 @@ function cabecalho(string $titulo): void
   .btn { display: inline-flex; align-items: center; gap: .4rem; background: #1B8A3A; color: #fff; font-weight: 700; border-radius: 9999px; padding: .6rem 1.1rem; }
   .btn2 { display: inline-flex; align-items: center; gap: .4rem; background: #fff; color: #13285A; font-weight: 700; border-radius: 9999px; padding: .55rem 1rem; border: 1px solid #D5DCE6; }
   input, select { border: 1px solid #D5DCE6; border-radius: .7rem; padding: .55rem .75rem; background: #fff; }
+  @media print {
+    @page { size: A4 landscape; margin: 10mm; }
+    body { background: #fff; }
+    header nav, form, .no-print, header a { display: none !important; }
+    .card { box-shadow: none; border: 1px solid #e3e7ea; break-inside: avoid; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
   a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #F7B928; outline-offset: 2px; }
 </style>
 </head>
