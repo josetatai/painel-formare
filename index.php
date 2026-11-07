@@ -457,15 +457,15 @@ cabecalho($abas[$aba]);
     </ol>
     <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="kiwify">
-      <label class="grid gap-1 text-sm font-semibold text-navy">Token do webhook da Kiwify
-        <input name="kiwify_token" type="password" autocomplete="off" placeholder="<?= ajuste('kiwify_token') ? '•••••••• (já cadastrado)' : 'cole o token' ?>" class="w-72"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Token do webhook da Kiwify
+        <input name="kiwify_token" type="password" autocomplete="off" placeholder="<?= ajuste('kiwify_token') ? '•••••••• (já cadastrado)' : 'cole o token' ?>" class="w-full sm:w-80"></label>
       <button class="btn !py-2">Salvar</button>
     </form>
     <h3 class="font-bold text-navy mt-5 text-sm">Últimos avisos recebidos da Kiwify</h3>
-    <table class="t mt-2"><tr><th>Quando</th><th>Pedido</th><th>Evento</th><th>Resultado</th></tr>
+    <div class="overflow-x-auto"><table class="t mt-2"><tr><th>Quando</th><th>Pedido</th><th>Evento</th><th>Resultado</th></tr>
       <?php foreach ($ultimos as $a): ?><tr><td><?= date('d/m H:i', strtotime($a['recebido_em'])) ?></td><td><?= h($a['pedido']) ?></td><td><?= h($a['evento']) ?></td><td class="<?= $a['aceito'] ? 'text-leaf' : 'text-coral' ?>"><?= h($a['motivo']) ?></td></tr><?php endforeach; ?>
       <?php if (!$ultimos): ?><tr><td colspan="4" class="text-navy/50">Nenhum aviso ainda.</td></tr><?php endif; ?>
-    </table>
+    </table></div>
   </section>
 
   <section class="card p-5 sm:p-6">
@@ -478,9 +478,9 @@ cabecalho($abas[$aba]);
     </ol>
     <form method="post" class="mt-4 grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="meta">
-      <label class="grid gap-1 text-sm font-semibold text-navy">Token da Meta
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Token da Meta
         <input name="meta_token" type="password" autocomplete="off" placeholder="<?= ajuste('meta_token') ? '•••••••• (já cadastrado)' : 'cole o token' ?>"></label>
-      <label class="grid gap-1 text-sm font-semibold text-navy">Contas de anúncio (números, separados por vírgula)
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Contas de anúncio (números, separados por vírgula)
         <input name="meta_contas" value="<?= h(ajuste('meta_contas', META_CONTAS_PADRAO)) ?>"></label>
       <button class="btn !py-2">Salvar</button>
     </form>
@@ -491,9 +491,9 @@ cabecalho($abas[$aba]);
     <p class="mt-2 text-sm text-navy/70">Usadas na aba Campanhas para pintar as faixas e dar a recomendação do dia.</p>
     <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="metas">
-      <label class="grid gap-1 text-sm font-semibold text-navy">Custo máximo por venda (R$)
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Custo máximo por venda (R$)
         <input name="custo_max" inputmode="decimal" value="<?= h(numero((float)ajuste('custo_max', '85'), 2)) ?>"></label>
-      <label class="grid gap-1 text-sm font-semibold text-navy">Início das campanhas ("Desde o início")
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Início das campanhas ("Desde o início")
         <input name="inicio" type="date" value="<?= h(ajuste('inicio_campanhas', '2026-10-28')) ?>"></label>
       <button class="btn !py-2">Salvar</button>
     </form>
@@ -503,8 +503,8 @@ cabecalho($abas[$aba]);
     <h2 class="font-display text-2xl text-navy">4. Trocar senha</h2>
     <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="senha">
-      <label class="grid gap-1 text-sm font-semibold text-navy">Senha atual <input name="atual" type="password" autocomplete="current-password"></label>
-      <label class="grid gap-1 text-sm font-semibold text-navy">Nova senha (mín. 10) <input name="nova" type="password" minlength="10" autocomplete="new-password"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Senha atual <input name="atual" type="password" autocomplete="current-password"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Nova senha (mín. 10) <input name="nova" type="password" minlength="10" autocomplete="new-password"></label>
       <button class="btn !py-2">Trocar</button>
     </form>
   </section>

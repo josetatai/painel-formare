@@ -230,6 +230,10 @@ function cabecalho(string $titulo): void
   .barra { height: .55rem; border-radius: 9999px; background: #1B8A3A; }
   .btn { display: inline-flex; align-items: center; gap: .4rem; background: #1B8A3A; color: #fff; font-weight: 700; border-radius: 9999px; padding: .6rem 1.1rem; }
   .btn2 { display: inline-flex; align-items: center; gap: .4rem; background: #fff; color: #13285A; font-weight: 700; border-radius: 9999px; padding: .55rem 1rem; border: 1px solid #D5DCE6; }
+  html, body { overflow-x: hidden; }
+  code { word-break: break-all; white-space: normal; }
+  input, select { max-width: 100%; }
+  label { min-width: 0; max-width: 100%; }
   input, select { border: 1px solid #D5DCE6; border-radius: .7rem; padding: .55rem .75rem; background: #fff; }
   @media print {
     @page { size: A4 landscape; margin: 10mm; }
