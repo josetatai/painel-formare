@@ -50,6 +50,7 @@ cabecalho('Entrar');
         <input name="senha" type="password" required autocomplete="current-password"></label>
       <button class="btn justify-center mt-2">Entrar</button>
     </form>
+    <p class="mt-4 text-sm text-center"><a class="text-navy/70 underline" href="configurar.php">Esqueci o usuário ou a senha</a></p>
   </div>
 </main>
 <?php rodape();

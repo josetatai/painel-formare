@@ -5,8 +5,10 @@ declare(strict_types=1);
 date_default_timezone_set('America/Sao_Paulo');
 ini_set('display_errors', '0');
 
-// Código de primeiro acesso (só o hash fica aqui; o código foi entregue ao José).
-const CODIGO_PRIMEIRO_ACESSO_HASH = '$2y$10$DbxD8gHVwID.h.8nr7z9h.Ad9.w4zP6rmRlAOaKJUA.9G874YxsLq';
+// Código de acesso de uso único (só o hash fica aqui; o código é entregue ao José).
+// Serve para o primeiro acesso e para redefinir usuário e senha. Depois de usado, não vale mais;
+// para uma nova redefinição, gerar outro código e trocar este hash.
+const CODIGO_PRIMEIRO_ACESSO_HASH = '$2y$10$eiRM4v2eqzvFqjY1EjXjeeNvj9H4RZqsfS7XMROiz1zpzO3g4BQy.';
 
 // Contas de anúncio da Meta consultadas por padrão (podem ser alteradas em Ajustes).
 const META_CONTAS_PADRAO = '1163444106038891,2600827373674370';
