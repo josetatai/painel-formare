@@ -2,6 +2,7 @@
 // Painel Instituto Formare: landing pages, campanhas, vendas e ajustes.
 require __DIR__ . '/lib.php';
 require __DIR__ . '/meta.php';
+require __DIR__ . '/kiwify_api.php';
 exigir_login();
 
 $abas = ['paginas' => 'Landing pages', 'campanhas' => 'Campanhas', 'vendas' => 'Vendas', 'ajustes' => 'Ajustes'];
@@ -50,6 +51,17 @@ if ($aba === 'ajustes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         salvar_ajuste('meta_contas', $contas !== '' ? $contas : META_CONTAS_PADRAO);
         db()->exec("DELETE FROM cache WHERE chave LIKE 'meta%'");
         $aviso = 'Dados da Meta salvos.';
+    } elseif ($acao === 'kiwify_api') {
+        foreach (['kiwify_client_id', 'kiwify_client_secret', 'kiwify_account_id'] as $k) {
+            if (trim((string)($_POST[$k] ?? '')) !== '') salvar_ajuste($k, trim((string)$_POST[$k]));
+        }
+        salvar_ajuste('kiwify_api_token', null);
+        $aviso = 'Chave de API da Kiwify salva. Agora clique em "Importar vendas".';
+    } elseif ($acao === 'importar') {
+        $desde = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['desde'] ?? '')) ? $_POST['desde'] : '2026-01-01';
+        $res = importar_kiwify($desde);
+        $aviso = isset($res['erro']) ? $res['erro'] . (!empty($res['importadas']) ? ' (' . $res['importadas'] . ' vendas importadas antes do erro.)' : '')
+            : 'Importação concluída: ' . $res['importadas'] . ' registros de venda lidos da Kiwify.';
     } elseif ($acao === 'metas') {
         $cm = str_replace(',', '.', preg_replace('/[^0-9,.]/', '', (string)($_POST['custo_max'] ?? '')));
         if ($cm !== '' && (float)$cm > 0) salvar_ajuste('custo_max', (string)(float)$cm);
@@ -476,9 +488,31 @@ cabecalho($abas[$aba]);
     </form>
     <h3 class="font-bold text-navy mt-5 text-sm">Últimos avisos recebidos da Kiwify</h3>
     <div class="overflow-x-auto"><table class="t mt-2"><tr><th>Quando</th><th>Pedido</th><th>Evento</th><th>Resultado</th></tr>
-      <?php foreach ($ultimos as $a): ?><tr><td><?= date('d/m H:i', strtotime($a['recebido_em'])) ?></td><td><?= h($a['pedido']) ?></td><td><?= h($a['evento']) ?></td><td class="<?= $a['aceito'] ? 'text-leaf' : 'text-coral' ?>"><?= h($a['motivo']) ?></td></tr><?php endforeach; ?>
+      <?php foreach ($ultimos as $a): ?><tr><td><?= date('d/m H:i', strtotime($a['recebido_em'])) ?></td><td><?= h($a['pedido']) ?></td><td><?= h($a['evento']) ?></td><td class="<?= $a['aceito'] ? 'text-leaf' : (str_starts_with((string)$a['motivo'], 'Aviso sem número') ? 'text-navy/50' : 'text-coral') ?>"><?= h($a['motivo']) ?></td></tr><?php endforeach; ?>
       <?php if (!$ultimos): ?><tr><td colspan="4" class="text-navy/50">Nenhum aviso ainda.</td></tr><?php endif; ?>
     </table></div>
+  </section>
+
+  <section class="card p-5 sm:p-6">
+    <h2 class="font-display text-2xl text-navy">1b. Histórico de vendas da Kiwify</h2>
+    <p class="mt-2 text-sm text-navy/70">Traz as vendas antigas, de antes do webhook. Na Kiwify: <strong>Apps → API → Criar API Key</strong>, marcando só <strong>Vendas</strong> (pode desmarcar o resto). Cole os três dados abaixo.</p>
+    <form method="post" class="mt-4 grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+      <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="kiwify_api">
+      <?php foreach (['kiwify_client_id' => 'Client ID', 'kiwify_client_secret' => 'Client Secret', 'kiwify_account_id' => 'Account ID'] as $k => $n): ?>
+        <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto"><?= $n ?>
+          <input name="<?= $k ?>" type="password" autocomplete="off" placeholder="<?= ajuste($k) ? '•••••••• (já cadastrado)' : 'cole aqui' ?>"></label>
+      <?php endforeach; ?>
+      <button class="btn !py-2">Salvar</button>
+    </form>
+    <?php if (ajuste('kiwify_client_id') && ajuste('kiwify_client_secret') && ajuste('kiwify_account_id')): ?>
+    <form method="post" class="mt-4 flex flex-wrap gap-2 items-end" onsubmit="this.querySelector('button').textContent='Importando… aguarde';">
+      <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="importar">
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Importar vendas desde
+        <input type="date" name="desde" value="2026-01-01"></label>
+      <button class="btn !py-2">Importar vendas</button>
+      <?php if (ajuste('kiwify_importado_em')): ?><span class="text-xs text-navy/60">Última importação: <?= date('d/m/Y H:i', strtotime(ajuste('kiwify_importado_em'))) ?></span><?php endif; ?>
+    </form>
+    <?php endif; ?>
   </section>
 
   <section class="card p-5 sm:p-6">
