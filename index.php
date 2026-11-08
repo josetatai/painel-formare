@@ -232,10 +232,13 @@ cabecalho($abas[$aba]);
               COUNT(CASE WHEN situacao='Pago' AND liquido_centavos IS NULL THEN 1 END) sem_liquido,
               COUNT(CASE WHEN situacao='Aguardando pagamento' THEN 1 END) aguardando
               FROM vendas WHERE criado_em BETWEEN ? AND ?", [$ini, $fim])[0];
-    $temKiwify = (int)q("SELECT COUNT(*) n FROM vendas")[0]['n'] > 0;
     $kiwDesde = q("SELECT MIN(recebido_em) d FROM avisos_kiwify WHERE aceito = 1")[0]['d'];
+    // Só usa a Kiwify como fonte quando ela cobre o período inteiro; senão usa as compras do Pixel.
+    $temKiwify = $kiwDesde && substr($kiwDesde, 0, 10) <= $de;
+    $ticket = q("SELECT AVG(t) m FROM (SELECT SUM(liquido_centavos) t FROM vendas WHERE situacao='Pago' AND liquido_centavos IS NOT NULL GROUP BY pedido)")[0]['m'];
+    $ticketLiq = $ticket ? $ticket / 100 : $custoMax;
     $vendasPagas = $temKiwify ? (int)$kiw['pedidos'] : (int)$tot['compras'];
-    $liquido = $temKiwify ? $kiw['liquido'] / 100 : $tot['compras'] * $custoMax;
+    $liquido = $temKiwify ? $kiw['liquido'] / 100 : $tot['compras'] * $ticketLiq;
     $g = $tot['gasto'];
     $met = [
         'cpm' => $tot['impressoes'] ? $g / $tot['impressoes'] * 1000 : null,
@@ -283,7 +286,7 @@ cabecalho($abas[$aba]);
     <button type="button" onclick="window.print()" class="btn2 no-print">Imprimir / salvar PDF</button>
   </div>
   <?php foreach ($alertas as $al): ?><div class="card p-4 text-coral font-semibold">⚠ <?= h($al) ?></div><?php endforeach; ?>
-  <?php if ($kiwDesde && substr($kiwDesde, 0, 10) > $de): ?><div class="card p-4 text-sm text-[#a0680e] bg-[#fdf3e2]">O painel recebe as vendas da Kiwify desde <?= date('d/m/Y', strtotime($kiwDesde)) ?>. Vendas anteriores a essa data não entram nas contas de vendas, receita, custo por venda e ROAS deste período.</div><?php endif; ?>
+  <?php if (!$temKiwify): ?><div class="card p-4 text-sm text-[#a0680e] bg-[#fdf3e2]"><?= $kiwDesde ? 'O painel recebe as vendas da Kiwify desde ' . date('d/m/Y', strtotime($kiwDesde)) . ', que é depois do início deste período.' : 'O painel ainda não recebeu vendas da Kiwify.' ?> Por isso, vendas, receita, custo por venda e ROAS abaixo usam as <strong>compras registradas pelo Pixel</strong>, com receita estimada em <?= reais((int)round($ticketLiq * 100)) ?> líquidos por venda<?= $ticket ? ' (média real das vendas da Kiwify)' : ' (custo máximo, pois ainda não há média real)' ?>. Para números 100% da Kiwify, escolha um período a partir de <?= $kiwDesde ? date('d/m/Y', strtotime($kiwDesde)) : 'quando o webhook começar a receber vendas' ?>.</div><?php endif; ?>
 
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
     <?php foreach ([['Vendas pagas' . ($temKiwify ? ' (Kiwify)' : ' (Pixel)'), numero($vendasPagas)], ['Receita líquida', reais((int)round($liquido * 100))],
@@ -310,12 +313,12 @@ cabecalho($abas[$aba]);
         </tr>
       <?php endforeach; ?>
     </table>
-    <p class="px-4 py-3 text-xs text-navy/50">Fonte das vendas: <?= $temKiwify ? 'vendas confirmadas na Kiwify (pedidos pagos; o líquido inclui as ofertas extras do checkout)' . ($kiw['sem_liquido'] ? '. Atenção: ' . $kiw['sem_liquido'] . ' venda(s) sem valor líquido informado' : '') : 'só Pixel (ainda não há vendas da Kiwify no painel); receita estimada pelo custo máximo' ?>. CPM, CTR, CPC e finalização são referências de mercado aproximadas.</p>
+    <p class="px-4 py-3 text-xs text-navy/50">Fonte das vendas: <?= $temKiwify ? 'vendas confirmadas na Kiwify (pedidos pagos; o líquido inclui as ofertas extras do checkout)' . ($kiw['sem_liquido'] ? '. Atenção: ' . $kiw['sem_liquido'] . ' venda(s) sem valor líquido informado' : '') : 'compras do Pixel (a Kiwify não cobre o período todo); receita estimada pelo líquido médio por venda' ?>. CPM, CTR, CPC e finalização são referências de mercado aproximadas.</p>
   </div>
 
   <div class="card p-4 text-sm text-navy/80">
     <strong>Conferência Kiwify x Pixel:</strong>
-    <?php if (!$temKiwify): ?>ainda não há vendas da Kiwify no painel (ligue o webhook em Ajustes).
+    <?php if (!$temKiwify): ?>a Kiwify não cobre o período inteiro, então não dá para comparar. Escolha um período a partir de <?= $kiwDesde ? date('d/m/Y', strtotime($kiwDesde)) : 'quando a primeira venda chegar' ?>.
     <?php elseif ((int)$kiw['pedidos'] === (int)$tot['compras']): ?>bateu: <?= numero($kiw['pedidos']) ?> vendas na Kiwify e <?= numero($tot['compras']) ?> compras atribuídas aos anúncios.
     <?php else: ?><?= numero($kiw['pedidos']) ?> vendas pagas na Kiwify e <?= numero($tot['compras']) ?> compras atribuídas aos anúncios pela Meta. A diferença inclui vendas que não vieram de anúncio e compras que o Pixel não registrou (cartão costuma falhar mais que Pix).<?php endif; ?>
   </div>
