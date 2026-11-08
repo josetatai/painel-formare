@@ -66,8 +66,10 @@ function importar_kiwify(string $desde): array
     $cab = ['Authorization: Bearer ' . $t['token'], 'x-kiwify-account-id: ' . (string)ajuste('kiwify_account_id'), 'Accept: application/json'];
     $total = 0;
     $ini = strtotime($desde);
-    while ($ini <= time()) {
-        $fim = min(time(), strtotime('+89 days', $ini));
+    // A API trata o fim como exclusivo e usa horário UTC: vai até amanhã e sobrepõe as janelas em 1 dia.
+    $limite = strtotime('+1 day', strtotime('today'));
+    while ($ini <= $limite) {
+        $fim = min($limite, strtotime('+89 days', $ini));
         $anterior = null;
         for ($p = 1; $p <= 200; $p++) {
             $url = KIWIFY_API . 'sales?' . http_build_query(['start_date' => date('Y-m-d', $ini), 'end_date' => date('Y-m-d', $fim),
@@ -91,7 +93,8 @@ function importar_kiwify(string $desde): array
             $ultima = (int)(pega((array)$info, 'total_pages') ?? pega((array)$info, 'last_page') ?? 0);
             if ($ultima && $p >= $ultima) break;
         }
-        $ini = strtotime('+1 day', $fim);
+        if ($fim >= $limite) break;
+        $ini = $fim;
     }
     salvar_ajuste('kiwify_importado_em', date('Y-m-d H:i:s'));
     salvar_ajuste('kiwify_importado_qtd', (string)$total);
