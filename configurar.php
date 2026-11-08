@@ -21,9 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario = trim((string)($_POST['usuario'] ?? ''));
     $senha = (string)($_POST['senha'] ?? '');
     $senha2 = (string)($_POST['senha2'] ?? '');
-    if (bloqueado()) {
-        $erro = 'Muitas tentativas. Espere 15 minutos.';
-    } elseif ($codigoUsado || !password_verify($codigo, CODIGO_PRIMEIRO_ACESSO_HASH)) {
+    if ($codigoUsado || !password_verify($codigo, CODIGO_PRIMEIRO_ACESSO_HASH)) {
         registrar_tentativa();
         $erro = 'Código de acesso incorreto.';
     } elseif (mb_strlen($usuario) < 3) {

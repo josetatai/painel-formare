@@ -170,18 +170,10 @@ function conferir_form(): void
     }
 }
 
-function bloqueado(): bool
-{
-    $limite = time() - 15 * 60;
-    db()->prepare('DELETE FROM tentativas WHERE quando < ?')->execute([$limite]);
-    $s = db()->prepare('SELECT COUNT(*) FROM tentativas WHERE ip = ?');
-    $s->execute([ip_hash()]);
-    return (int)$s->fetchColumn() >= 5;
-}
-
 function registrar_tentativa(): void
 {
-    db()->prepare('INSERT INTO tentativas (ip, quando) VALUES (?, ?)')->execute([ip_hash(), time()]);
+    // Sem bloqueio por tempo: cada tentativa errada só demora 2 segundos, o que impede testar senhas em massa.
+    sleep(2);
 }
 
 function reais(?int $centavos): string

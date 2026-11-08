@@ -16,22 +16,17 @@ if (logado()) {
 $erro = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     conferir_form();
-    if (bloqueado()) {
-        $erro = 'Muitas tentativas. Espere 15 minutos e tente de novo.';
-    } else {
-        $usuario = trim((string)($_POST['usuario'] ?? ''));
-        $senha = (string)($_POST['senha'] ?? '');
-        if (hash_equals((string)ajuste('usuario'), $usuario) && password_verify($senha, (string)ajuste('senha_hash'))) {
-            db()->prepare('DELETE FROM tentativas WHERE ip = ?')->execute([ip_hash()]);
-            session_regenerate_id(true);
-            $_SESSION['ok'] = true;
-            $_SESSION['ate'] = time() + 8 * 3600;
-            header('Location: ./');
-            exit;
-        }
-        registrar_tentativa();
-        $erro = 'Usuário ou senha incorretos.';
+    $usuario = trim((string)($_POST['usuario'] ?? ''));
+    $senha = (string)($_POST['senha'] ?? '');
+    if (hash_equals((string)ajuste('usuario'), $usuario) && password_verify($senha, (string)ajuste('senha_hash'))) {
+        session_regenerate_id(true);
+        $_SESSION['ok'] = true;
+        $_SESSION['ate'] = time() + 8 * 3600;
+        header('Location: ./');
+        exit;
     }
+    registrar_tentativa();
+    $erro = 'Usuário ou senha incorretos.';
 }
 
 cabecalho('Entrar');
