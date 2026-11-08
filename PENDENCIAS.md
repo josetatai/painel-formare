@@ -5,4 +5,4 @@
 - [x] Histórico de vendas da Kiwify importado (08/11/2026): 34 pagas, R$ 1.998,56 líquidos, igual à Kiwify. Para atualizar, Ajustes → 1b → Importar vendas.
 - [x] Marcar como "facebook-instagram" as visitas que chegam com fbclid (feito em 08/11/2026).
 - [ ] Opcional: apagar o webhook antigo "Formare Play" na Kiwify.
-- [ ] Opcional: deixar a página do Servidor 4.0 atualizar sozinha pelo GitHub (webhook da Hostinger).
+- [x] Página do Servidor 4.0 publica sozinha a cada mudança no GitHub (feito em 08/11/2026).
