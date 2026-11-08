@@ -447,6 +447,16 @@ cabecalho($abas[$aba]);
     $ultimos = q("SELECT * FROM avisos_kiwify ORDER BY id DESC LIMIT 10");
 ?>
   <h1 class="font-display text-3xl text-navy">Ajustes</h1>
+  <?php
+    $pend = is_file(__DIR__ . '/PENDENCIAS.md') ? array_filter(file(__DIR__ . '/PENDENCIAS.md'), fn($l) => str_starts_with(trim($l), '- [ ]')) : [];
+    if ($pend): ?>
+    <section class="card p-5 sm:p-6 bg-[#fdf3e2]">
+      <h2 class="font-display text-2xl text-navy">Lembretes</h2>
+      <ul class="mt-3 space-y-2 text-sm text-navy/85 list-disc pl-5">
+        <?php foreach ($pend as $l): ?><li><?= h(trim(substr(trim($l), 5))) ?></li><?php endforeach; ?>
+      </ul>
+    </section>
+  <?php endif; ?>
   <?php if (isset($_GET['novo'])): ?><div class="card p-4 bg-leaf-50 text-leaf font-semibold">Acesso criado. Agora faça as duas ligações abaixo: Kiwify e Meta.</div><?php endif; ?>
   <?php if ($aviso): ?><div class="card p-4 font-semibold text-navy"><?= h($aviso) ?></div><?php endif; ?>
 
