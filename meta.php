@@ -1,11 +1,14 @@
 <?php
 // Busca as campanhas e os números da Meta (Facebook/Instagram), com cache de 15 minutos.
 
+// Versão da Marketing API. Quando a Meta descontinuar esta, a aba Campanhas mostra o erro #2635 com a versão nova: troque aqui.
+const META_API_VERSAO = 'v27.0';
+
 function meta_get(string $caminho, array $params): array
 {
     $token = (string)ajuste('meta_token', '');
     if ($token === '') return ['erro' => 'Falta cadastrar o token da Meta em Ajustes.'];
-    $url = 'https://graph.facebook.com/' . ltrim($caminho, '/') . '?' . http_build_query($params + ['access_token' => $token]);
+    $url = 'https://graph.facebook.com/' . META_API_VERSAO . '/' . ltrim($caminho, '/') . '?' . http_build_query($params + ['access_token' => $token]);
     $todos = [];
     for ($pagina = 0; $pagina < 10 && $url; $pagina++) {
         $ch = curl_init($url);
