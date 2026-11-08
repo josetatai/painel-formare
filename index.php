@@ -5,7 +5,7 @@ require __DIR__ . '/meta.php';
 require __DIR__ . '/kiwify_api.php';
 exigir_login();
 
-$abas = ['paginas' => 'Landing pages', 'campanhas' => 'Campanhas', 'vendas' => 'Vendas', 'ajustes' => 'Ajustes'];
+$abas = ['paginas' => 'Landing pages', 'links' => 'Links', 'campanhas' => 'Campanhas', 'vendas' => 'Vendas', 'ajustes' => 'Ajustes'];
 $aba = $_GET['aba'] ?? 'paginas';
 if (!isset($abas[$aba])) $aba = 'paginas';
 
@@ -76,6 +76,27 @@ if ($aba === 'ajustes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Links: guarda cada link gerado (chamado pelo botão "Gerar e copiar")
+if ($aba === 'links' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    conferir_form();
+    $limpa = fn($v, $n) => mb_substr(preg_replace('/[^a-z0-9\-]/', '', strtolower((string)$v)), 0, $n);
+    if (($_POST['acao'] ?? '') === 'apagar') {
+        db()->prepare('DELETE FROM links WHERE id = ?')->execute([(int)$_POST['id']]);
+    } else {
+        $pagina = $limpa($_POST['pagina'] ?? '', 60);
+        $origem = $limpa($_POST['origem'] ?? '', 40);
+        $campanha = $limpa($_POST['campanha'] ?? '', 40);
+        if ($pagina !== '' && $origem !== '') {
+            $url = 'https://land.institutoformare.com.br/' . $pagina . '/?o=' . $origem . ($campanha !== '' ? '&c=' . $campanha : '');
+            db()->prepare('INSERT INTO links (criado_em, pagina, origem, campanha, url, nota) VALUES (?, ?, ?, ?, ?, ?)')
+                ->execute([date('Y-m-d H:i:s'), $pagina, $origem, $campanha ?: null, $url, mb_substr(trim((string)($_POST['nota'] ?? '')), 0, 120) ?: null]);
+        }
+    }
+    if (isset($_POST['ajax'])) { header('Content-Type: application/json'); echo '{"ok":true}'; exit; }
+    header('Location: ?aba=links');
+    exit;
+}
+
 cabecalho($abas[$aba]);
 ?>
 <header class="bg-white shadow-sm">
@@ -98,7 +119,7 @@ cabecalho($abas[$aba]);
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-<?php if ($aba !== 'ajustes'): ?>
+<?php if ($aba !== 'ajustes' && $aba !== 'links'): ?>
   <form class="card p-4 flex flex-wrap items-end gap-3" method="get">
     <input type="hidden" name="aba" value="<?= h($aba) ?>">
     <div class="flex flex-wrap gap-2">
@@ -209,6 +230,104 @@ cabecalho($abas[$aba]);
     </table></div>
   </article>
   <?php endforeach; ?>
+
+<?php elseif ($aba === 'links'):
+    $paginas = ['livro-licitacoes' => 'Livro Digital Completo · Licitações', 'livro-servidor-4-0' => 'Livro Digital Completo · Servidor 4.0'];
+    foreach (q("SELECT DISTINCT pagina FROM eventos") as $pg) {
+        $slug = trim((string)$pg['pagina'], '/');
+        if ($slug !== '' && !str_contains($slug, '/') && !isset($paginas[$slug]) && $slug !== 'cartilha-licitacoes') $paginas[$slug] = $slug;
+    }
+    $origens = ['whatsapp' => 'WhatsApp', 'instagram' => 'Instagram (post ou geral)', 'instagram-direct' => 'Instagram Direct / ManyChat', 'instagram-stories' => 'Instagram Stories',
+        'instagram-bio' => 'Bio do Instagram', 'tiktok' => 'TikTok', 'youtube' => 'YouTube', 'facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'email' => 'E-mail', 'telegram' => 'Telegram'];
+    $gerados = q("SELECT l.*,
+        (SELECT COUNT(DISTINCT e.sessao) FROM eventos e WHERE e.tipo='visita' AND e.origem = l.origem AND COALESCE(e.campanha,'') = COALESCE(l.campanha,'') AND trim(e.pagina,'/') = l.pagina) visitas,
+        (SELECT COUNT(DISTINCT v.pedido) FROM vendas v WHERE v.situacao='Pago' AND v.origem = l.origem AND COALESCE(v.campanha,'') = COALESCE(l.campanha,'')) vendas
+        FROM links l ORDER BY l.id DESC LIMIT 200");
+?>
+  <section>
+    <h1 class="font-display text-3xl text-navy">Links</h1>
+    <p class="text-sm text-navy/60 mt-1">Escolha a página e onde vai divulgar. O painel monta o link e já copia: é só colar no WhatsApp, no ManyChat, na bio ou onde for. Quem comprar por esse link aparece com essa origem na aba Vendas.</p>
+  </section>
+
+  <div class="card p-5 sm:p-6">
+    <form id="form-link" class="grid md:grid-cols-[1.2fr_1fr_1fr] gap-4 items-end">
+      <input type="hidden" name="csrf" value="<?= h(token_form()) ?>">
+      <label class="grid gap-1 text-sm font-semibold text-navy">Landing page
+        <select name="pagina"><?php foreach ($paginas as $k => $n): ?><option value="<?= h($k) ?>"><?= h($n) ?></option><?php endforeach; ?></select></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy">Onde vai divulgar
+        <select name="origem" id="origem"><?php foreach ($origens as $k => $n): ?><option value="<?= h($k) ?>"><?= h($n) ?></option><?php endforeach; ?><option value="outro">Outro (escrever)</option></select></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy" id="outro-box" style="display:none">Qual?
+        <input name="outro" placeholder="ex.: grupo-prefeitos, palestra-sp"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy md:col-span-1">Campanha ou post <span class="font-normal text-navy/50">(opcional)</span>
+        <input name="campanha" placeholder="ex.: post-etp, amigo-joao"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy md:col-span-2">Anotação para você <span class="font-normal text-navy/50">(opcional, não vai no link)</span>
+        <input name="nota" placeholder="ex.: arte do Instagram de segunda, resposta automática do ManyChat"></label>
+      <button type="submit" class="btn justify-center md:col-span-3 !py-3 !text-lg">Gerar e copiar link</button>
+    </form>
+
+    <div id="resultado" class="mt-5 hidden">
+      <label class="text-sm font-semibold text-navy">Seu link</label>
+      <div class="mt-1 flex flex-col sm:flex-row gap-2">
+        <input id="link-gerado" readonly class="flex-1 font-mono text-sm !bg-mint/40" onclick="this.select()">
+        <button type="button" id="copiar" class="btn2 justify-center">Copiar de novo</button>
+      </div>
+      <p id="copiado" class="mt-2 text-sm font-semibold text-leaf">✓ Link copiado. É só colar.</p>
+    </div>
+  </div>
+
+  <div class="card overflow-x-auto">
+    <h2 class="font-bold text-navy px-4 pt-4">Links gerados</h2>
+    <p class="text-xs text-navy/50 px-4">Visitas e vendas contam todas as pessoas que chegaram com a mesma origem e campanha.</p>
+    <table class="t mt-2">
+      <tr><th>Criado em</th><th>Página</th><th>Origem</th><th>Campanha</th><th>Anotação</th><th class="n">Visitas</th><th class="n">Vendas</th><th>Link</th><th></th></tr>
+      <?php foreach ($gerados as $l): ?>
+        <tr>
+          <td class="whitespace-nowrap"><?= date('d/m/Y H:i', strtotime($l['criado_em'])) ?></td>
+          <td><?= h($paginas[$l['pagina']] ?? $l['pagina']) ?></td>
+          <td><?= h($origens[$l['origem']] ?? $l['origem']) ?></td>
+          <td><?= h($l['campanha']) ?></td>
+          <td class="text-xs"><?= h($l['nota']) ?></td>
+          <td class="n"><?= numero($l['visitas']) ?></td>
+          <td class="n"><?= numero($l['vendas']) ?></td>
+          <td><button type="button" class="btn2 !py-1 !px-3 text-xs js-copiar" data-url="<?= h($l['url']) ?>">Copiar</button></td>
+          <td><form method="post" onsubmit="return confirm('Apagar este link da lista? (o link continua funcionando)')">
+            <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="apagar"><input type="hidden" name="id" value="<?= (int)$l['id'] ?>">
+            <button class="text-xs text-navy/40 underline">apagar</button></form></td>
+        </tr>
+      <?php endforeach; ?>
+      <?php if (!$gerados): ?><tr><td colspan="9" class="text-navy/50">Nenhum link gerado ainda.</td></tr><?php endif; ?>
+    </table>
+  </div>
+
+  <script>
+  (function () {
+    var f = document.getElementById('form-link'), sel = document.getElementById('origem'), box = document.getElementById('outro-box');
+    function slug(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); }
+    function copiar(t) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t);
+      var i = document.createElement('textarea'); i.value = t; document.body.appendChild(i); i.select(); document.execCommand('copy'); i.remove(); return Promise.resolve();
+    }
+    sel.addEventListener('change', function () { box.style.display = sel.value === 'outro' ? 'grid' : 'none'; });
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var origem = sel.value === 'outro' ? slug(f.outro.value) : sel.value;
+      if (!origem) { alert('Escreva onde vai divulgar.'); return; }
+      var camp = slug(f.campanha.value);
+      var url = 'https://land.institutoformare.com.br/' + f.pagina.value + '/?o=' + origem + (camp ? '&c=' + camp : '');
+      document.getElementById('resultado').classList.remove('hidden');
+      var campo = document.getElementById('link-gerado'); campo.value = url;
+      copiar(url).then(function () { document.getElementById('copiado').textContent = '✓ Link copiado. É só colar.'; },
+                       function () { campo.select(); document.getElementById('copiado').textContent = 'Selecione e copie o link acima (Ctrl + C).'; });
+      var d = new FormData(); d.append('csrf', f.csrf.value); d.append('pagina', f.pagina.value); d.append('origem', origem);
+      d.append('campanha', camp); d.append('nota', f.nota.value); d.append('ajax', '1');
+      fetch('?aba=links', { method: 'POST', body: d, credentials: 'same-origin' });
+    });
+    document.getElementById('copiar').addEventListener('click', function () { copiar(document.getElementById('link-gerado').value); document.getElementById('copiado').textContent = '✓ Copiado de novo.'; });
+    document.querySelectorAll('.js-copiar').forEach(function (b) {
+      b.addEventListener('click', function () { copiar(b.dataset.url).then(function () { b.textContent = '✓ Copiado'; setTimeout(function () { b.textContent = 'Copiar'; }, 1500); }); });
+    });
+  })();
+  </script>
 
 <?php elseif ($aba === 'campanhas'):
     $forcar = isset($_GET['atualizar']);

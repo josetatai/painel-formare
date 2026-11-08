@@ -86,6 +86,10 @@ function db(): PDO
         );
         CREATE TABLE IF NOT EXISTS cache (chave TEXT PRIMARY KEY, valor TEXT, atualizado_em INTEGER);
         CREATE TABLE IF NOT EXISTS tentativas (ip TEXT, quando INTEGER);
+        CREATE TABLE IF NOT EXISTS links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            criado_em TEXT, pagina TEXT, origem TEXT, campanha TEXT, url TEXT, nota TEXT
+        );
     ");
     return $pdo;
 }
