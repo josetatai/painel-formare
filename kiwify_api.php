@@ -87,5 +87,6 @@ function importar_kiwify(string $desde): array
         $ini = strtotime('+1 day', $fim);
     }
     salvar_ajuste('kiwify_importado_em', date('Y-m-d H:i:s'));
+    salvar_ajuste('kiwify_importado_qtd', (string)$total);
     return ['importadas' => $total];
 }

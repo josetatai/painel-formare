@@ -510,7 +510,7 @@ cabecalho($abas[$aba]);
       <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Importar vendas desde
         <input type="date" name="desde" value="2026-01-01"></label>
       <button class="btn !py-2">Importar vendas</button>
-      <?php if (ajuste('kiwify_importado_em')): ?><span class="text-xs text-navy/60">Última importação: <?= date('d/m/Y H:i', strtotime(ajuste('kiwify_importado_em'))) ?></span><?php endif; ?>
+      <?php if (ajuste('kiwify_importado_em')): ?><span class="text-xs text-navy/60">Última importação: <?= date('d/m/Y H:i', strtotime(ajuste('kiwify_importado_em'))) ?><?= ajuste('kiwify_importado_qtd') !== null ? ' · ' . h(ajuste('kiwify_importado_qtd')) . ' registros lidos' : '' ?> · no painel agora: <?= numero(q("SELECT COUNT(*) n FROM vendas")[0]['n']) ?> registros de venda</span><?php endif; ?>
     </form>
     <?php endif; ?>
   </section>
