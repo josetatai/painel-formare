@@ -68,6 +68,7 @@ function importar_kiwify(string $desde): array
     $ini = strtotime($desde);
     while ($ini <= time()) {
         $fim = min(time(), strtotime('+89 days', $ini));
+        $anterior = null;
         for ($p = 1; $p <= 200; $p++) {
             $url = KIWIFY_API . 'sales?' . http_build_query(['start_date' => date('Y-m-d', $ini), 'end_date' => date('Y-m-d', $fim),
                 'page_size' => 100, 'page_number' => $p, 'view_full_sale_details' => 'true']);
@@ -76,13 +77,19 @@ function importar_kiwify(string $desde): array
                 return ['erro' => 'A Kiwify respondeu com erro (código ' . $c . '): ' . mb_substr(strip_tags($bruto), 0, 200), 'importadas' => $total];
             }
             $lista = $j['data'] ?? [];
+            // Página vazia ou repetida = fim. Não depende do tamanho da página, que a Kiwify pode limitar abaixo de 100.
+            $primeiro = (string)(pega((array)($lista[0] ?? []), 'id') ?? '');
+            if (!$lista || $primeiro === ($anterior ?? null)) break;
+            $anterior = $primeiro;
             foreach ($lista as $v) {
                 $linha = venda_da_api((array)$v);
                 if ($linha['pedido'] === '') continue;
                 salvar_venda($linha);
                 $total++;
             }
-            if (count($lista) < 100) break;
+            $info = $j['pagination'] ?? [];
+            $ultima = (int)(pega((array)$info, 'total_pages') ?? pega((array)$info, 'last_page') ?? 0);
+            if ($ultima && $p >= $ultima) break;
         }
         $ini = strtotime('+1 day', $fim);
     }
