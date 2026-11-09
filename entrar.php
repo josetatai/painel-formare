@@ -16,9 +16,9 @@ if (logado()) {
 $erro = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     conferir_form();
-    $usuario = trim((string)($_POST['usuario'] ?? ''));
+    $usuario = strtolower(trim((string)($_POST['usuario'] ?? '')));
     $senha = (string)($_POST['senha'] ?? '');
-    if (hash_equals((string)ajuste('usuario'), $usuario) && password_verify($senha, (string)ajuste('senha_hash'))) {
+    if (hash_equals(strtolower((string)ajuste('email', ajuste('usuario'))), $usuario) && password_verify($senha, (string)ajuste('senha_hash'))) {
         session_regenerate_id(true);
         $_SESSION['ok'] = true;
         $_SESSION['ate'] = time() + 8 * 3600;
@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     registrar_tentativa();
-    $erro = 'Usuário ou senha incorretos.';
+    $erro = 'E-mail ou senha incorretos.';
 }
 
 cabecalho('Entrar');
@@ -39,13 +39,13 @@ cabecalho('Entrar');
     <?php if ($erro): ?><p class="mt-4 rounded-xl bg-coral/10 text-coral font-semibold px-4 py-3 text-sm"><?= h($erro) ?></p><?php endif; ?>
     <form method="post" class="mt-5 grid gap-4">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>">
-      <label class="grid gap-1 text-sm font-semibold text-navy">Usuário
-        <input name="usuario" required autocomplete="username"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy">E-mail
+        <input name="usuario" type="email" required autocomplete="username"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy">Senha
         <input name="senha" type="password" required autocomplete="current-password"></label>
       <button class="btn justify-center mt-2">Entrar</button>
     </form>
-    <p class="mt-4 text-sm text-center"><a class="text-navy/70 underline" href="esqueci.php">Esqueci o usuário ou a senha</a></p>
+    <p class="mt-4 text-sm text-center"><a class="text-navy/70 underline" href="esqueci.php">Esqueci a senha</a></p>
   </div>
 </main>
 <?php rodape();

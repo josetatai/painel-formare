@@ -18,15 +18,12 @@ $erro = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     conferir_form();
     $codigo = strtoupper(trim((string)($_POST['codigo'] ?? '')));
-    $usuario = trim((string)($_POST['usuario'] ?? ''));
     $senha = (string)($_POST['senha'] ?? '');
     $senha2 = (string)($_POST['senha2'] ?? '');
     $email = strtolower(trim((string)($_POST['email'] ?? '')));
     if ($codigoUsado || !password_verify($codigo, CODIGO_PRIMEIRO_ACESSO_HASH)) {
         registrar_tentativa();
         $erro = 'Código de acesso incorreto.';
-    } elseif (mb_strlen($usuario) < 3) {
-        $erro = 'O usuário precisa ter pelo menos 3 letras.';
     } elseif (mb_strlen($senha) < 10) {
         $erro = 'A senha precisa ter pelo menos 10 caracteres.';
     } elseif ($senha !== $senha2) {
@@ -35,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erro = 'Informe um e-mail válido para recuperar a senha.';
     } else {
         if (!$redefinir) salvar_ajuste('sal', bin2hex(random_bytes(16)));
-        salvar_ajuste('usuario', $usuario);
+        salvar_ajuste('usuario', $email);
         salvar_ajuste('senha_hash', password_hash($senha, PASSWORD_DEFAULT));
         salvar_ajuste('codigo_usado', CODIGO_PRIMEIRO_ACESSO_HASH);
         salvar_ajuste('email', $email);
@@ -53,16 +50,14 @@ cabecalho($redefinir ? 'Redefinir acesso' : 'Primeiro acesso');
   <img src="../livro-licitacoes/img/logo-formare.webp" alt="Instituto Formare" class="h-11 w-auto">
   <div class="card p-6 sm:p-8 mt-6">
     <h1 class="font-display text-3xl text-navy"><?= $redefinir ? 'Redefinir acesso' : 'Primeiro acesso' ?></h1>
-    <p class="mt-2 text-sm text-navy/70"><?= $redefinir ? 'Use o código de acesso para criar um novo usuário e uma nova senha. Os dados do painel continuam iguais.' : 'Crie o seu usuário e a sua senha. Isso só é feito uma vez.' ?></p>
+    <p class="mt-2 text-sm text-navy/70"><?= $redefinir ? 'Use o código de acesso para definir o seu e-mail de login e uma nova senha. Os dados do painel continuam iguais.' : 'Defina o seu e-mail de login e a sua senha. Isso só é feito uma vez.' ?></p>
     <?php if ($erro): ?><p class="mt-4 rounded-xl bg-coral/10 text-coral font-semibold px-4 py-3 text-sm"><?= h($erro) ?></p><?php endif; ?>
     <form method="post" class="mt-5 grid gap-4" autocomplete="off">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>">
       <label class="grid gap-1 text-sm font-semibold text-navy">Código de acesso
         <input name="codigo" required placeholder="XXXX-XXXX-XXXX" autocomplete="one-time-code"></label>
-      <label class="grid gap-1 text-sm font-semibold text-navy">Usuário
-        <input name="usuario" required minlength="3" autocomplete="username"></label>
-      <label class="grid gap-1 text-sm font-semibold text-navy">Seu e-mail <span class="font-normal text-navy/60">(para recuperar a senha quando esquecer)</span>
-        <input name="email" type="email" required autocomplete="email" value="<?= h(ajuste('email')) ?>"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy">Seu e-mail <span class="font-normal text-navy/60">(é o seu login e recebe o link quando esquecer a senha)</span>
+        <input name="email" type="email" required autocomplete="username" value="<?= h(ajuste('email')) ?>"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy">Senha (mínimo 10 caracteres)
         <input name="senha" type="password" required minlength="10" autocomplete="new-password"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy">Repita a senha

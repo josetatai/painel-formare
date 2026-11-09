@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $temEmail) {
         salvar_ajuste('reset_ate', (string)(time() + 3600));
         $link = 'https://land.institutoformare.com.br/painel/redefinir.php?t=' . $t;
         enviar_email($email, 'Redefinir a senha do Painel Instituto Formare',
-            "Olá!\n\nVocê pediu para redefinir o acesso ao Painel Instituto Formare.\n\nSeu usuário atual: " . ajuste('usuario') .
+            "Olá!\n\nVocê pediu para redefinir o acesso ao Painel Instituto Formare.\n\nSeu login é este e-mail: " . ajuste('email') .
             "\n\nClique no link abaixo para criar uma nova senha (vale por 1 hora e só pode ser usado uma vez):\n\n$link\n\n" .
             "Se não foi você, ignore este e-mail. Sua senha atual continua valendo.\n\nPainel Instituto Formare");
     } else {
@@ -39,7 +39,7 @@ cabecalho('Esqueci a senha');
       <p class="mt-3 text-sm text-navy/60">Não chegou? Confira a caixa de <strong>spam</strong> e a aba <strong>Promoções</strong>.</p>
       <a class="btn2 mt-5" href="entrar.php">Voltar para o login</a>
     <?php else: ?>
-      <p class="mt-2 text-sm text-navy/70">Digite o e-mail cadastrado no painel. Vamos mandar um link para você criar uma nova senha. O e-mail também lembra o seu usuário.</p>
+      <p class="mt-2 text-sm text-navy/70">Digite o e-mail cadastrado no painel. Vamos mandar um link para você criar uma nova senha.</p>
       <form method="post" class="mt-5 grid gap-4">
         <input type="hidden" name="csrf" value="<?= h(token_form()) ?>">
         <label class="grid gap-1 text-sm font-semibold text-navy">E-mail

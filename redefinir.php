@@ -11,13 +11,10 @@ $valido = $t !== '' && ajuste('reset_hash') !== null && (int)ajuste('reset_ate',
 $erro = '';
 if ($valido && $_SERVER['REQUEST_METHOD'] === 'POST') {
     conferir_form();
-    $usuario = trim((string)($_POST['usuario'] ?? ''));
     $senha = (string)($_POST['senha'] ?? '');
-    if (mb_strlen($usuario) < 3) $erro = 'O usuário precisa ter pelo menos 3 letras.';
-    elseif (mb_strlen($senha) < 10) $erro = 'A senha precisa ter pelo menos 10 caracteres.';
+    if (mb_strlen($senha) < 10) $erro = 'A senha precisa ter pelo menos 10 caracteres.';
     elseif ($senha !== (string)($_POST['senha2'] ?? '')) $erro = 'As duas senhas não são iguais.';
     else {
-        salvar_ajuste('usuario', $usuario);
         salvar_ajuste('senha_hash', password_hash($senha, PASSWORD_DEFAULT));
         salvar_ajuste('reset_hash', null);
         salvar_ajuste('reset_ate', null);
@@ -42,8 +39,8 @@ cabecalho('Nova senha');
       <?php if ($erro): ?><p class="mt-4 rounded-xl bg-coral/10 text-coral font-semibold px-4 py-3 text-sm"><?= h($erro) ?></p><?php endif; ?>
       <form method="post" class="mt-5 grid gap-4">
         <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="t" value="<?= h($t) ?>">
-        <label class="grid gap-1 text-sm font-semibold text-navy">Usuário
-          <input name="usuario" required minlength="3" autocomplete="username" value="<?= h(ajuste('usuario')) ?>"></label>
+        <p class="text-sm text-navy/70">Login: <strong><?= h(ajuste('email')) ?></strong></p>
+        <input type="hidden" name="usuario" autocomplete="username" value="<?= h(ajuste('email')) ?>">
         <label class="grid gap-1 text-sm font-semibold text-navy">Nova senha (mínimo 10 caracteres)
           <input name="senha" type="password" required minlength="10" autocomplete="new-password"></label>
         <label class="grid gap-1 text-sm font-semibold text-navy">Repita a nova senha

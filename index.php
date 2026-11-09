@@ -69,7 +69,7 @@ if ($aba === 'ajustes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $aviso = 'Metas salvas.';
     } elseif ($acao === 'email') {
         $e = strtolower(trim((string)($_POST['email'] ?? '')));
-        if (email_valido($e)) { salvar_ajuste('email', $e); $aviso = 'E-mail de recuperação salvo.'; }
+        if (email_valido($e)) { salvar_ajuste('email', $e); salvar_ajuste('usuario', $e); $aviso = 'E-mail salvo. A partir de agora, entre com ' . $e . '.'; }
         else $aviso = 'E-mail inválido.';
     } elseif ($acao === 'senha') {
         $atual = (string)($_POST['atual'] ?? '');
@@ -680,8 +680,8 @@ cabecalho($abas[$aba]);
   </section>
 
   <section class="card p-5 sm:p-6">
-    <h2 class="font-display text-2xl text-navy">5. E-mail para recuperar a senha</h2>
-    <p class="mt-2 text-sm text-navy/70">Quando você clicar em "Esqueci o usuário ou a senha", o link para criar uma nova senha vai para este e-mail.</p>
+    <h2 class="font-display text-2xl text-navy">5. E-mail de login</h2>
+    <p class="mt-2 text-sm text-navy/70">É com este e-mail que você entra no painel. Quando clicar em "Esqueci a senha", o link para criar uma nova senha vai para ele.</p>
     <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="email">
       <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-80">E-mail <input name="email" type="email" required value="<?= h(ajuste('email')) ?>"></label>
