@@ -8,8 +8,8 @@ $codigoUsado = hash_equals((string)ajuste('codigo_usado'), CODIGO_PRIMEIRO_ACESS
 if ($redefinir && $codigoUsado) {
     cabecalho('Redefinir acesso');
     echo '<main class="max-w-md mx-auto px-4 py-12"><div class="card p-6 sm:p-8"><h1 class="font-display text-3xl text-navy">Redefinir acesso</h1>'
-       . '<p class="mt-3 text-navy/80">Para redefinir o usuário e a senha é preciso um código novo. Peça um novo código de acesso.</p>'
-       . '<a class="btn mt-5" href="entrar.php">Voltar</a></div></main>';
+       . '<p class="mt-3 text-navy/80">Use a opção de receber um link no seu e-mail.</p>'
+       . '<a class="btn mt-5" href="esqueci.php">Receber link por e-mail</a></div></main>';
     rodape();
     exit;
 }
@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario = trim((string)($_POST['usuario'] ?? ''));
     $senha = (string)($_POST['senha'] ?? '');
     $senha2 = (string)($_POST['senha2'] ?? '');
+    $email = strtolower(trim((string)($_POST['email'] ?? '')));
     if ($codigoUsado || !password_verify($codigo, CODIGO_PRIMEIRO_ACESSO_HASH)) {
         registrar_tentativa();
         $erro = 'Código de acesso incorreto.';
@@ -30,11 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erro = 'A senha precisa ter pelo menos 10 caracteres.';
     } elseif ($senha !== $senha2) {
         $erro = 'As duas senhas não são iguais.';
+    } elseif (!email_valido($email)) {
+        $erro = 'Informe um e-mail válido para recuperar a senha.';
     } else {
         if (!$redefinir) salvar_ajuste('sal', bin2hex(random_bytes(16)));
         salvar_ajuste('usuario', $usuario);
         salvar_ajuste('senha_hash', password_hash($senha, PASSWORD_DEFAULT));
         salvar_ajuste('codigo_usado', CODIGO_PRIMEIRO_ACESSO_HASH);
+        salvar_ajuste('email', $email);
         session_regenerate_id(true);
         $_SESSION['ok'] = true;
         $_SESSION['ate'] = time() + 8 * 3600;
@@ -57,6 +61,8 @@ cabecalho($redefinir ? 'Redefinir acesso' : 'Primeiro acesso');
         <input name="codigo" required placeholder="XXXX-XXXX-XXXX" autocomplete="one-time-code"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy">Usuário
         <input name="usuario" required minlength="3" autocomplete="username"></label>
+      <label class="grid gap-1 text-sm font-semibold text-navy">Seu e-mail <span class="font-normal text-navy/60">(para recuperar a senha quando esquecer)</span>
+        <input name="email" type="email" required autocomplete="email" value="<?= h(ajuste('email')) ?>"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy">Senha (mínimo 10 caracteres)
         <input name="senha" type="password" required minlength="10" autocomplete="new-password"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy">Repita a senha

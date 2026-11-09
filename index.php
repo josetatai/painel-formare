@@ -67,6 +67,10 @@ if ($aba === 'ajustes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($cm !== '' && (float)$cm > 0) salvar_ajuste('custo_max', (string)(float)$cm);
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['inicio'] ?? ''))) salvar_ajuste('inicio_campanhas', $_POST['inicio']);
         $aviso = 'Metas salvas.';
+    } elseif ($acao === 'email') {
+        $e = strtolower(trim((string)($_POST['email'] ?? '')));
+        if (email_valido($e)) { salvar_ajuste('email', $e); $aviso = 'E-mail de recuperação salvo.'; }
+        else $aviso = 'E-mail inválido.';
     } elseif ($acao === 'senha') {
         $atual = (string)($_POST['atual'] ?? '');
         $nova = (string)($_POST['nova'] ?? '');
@@ -672,6 +676,16 @@ cabecalho($abas[$aba]);
       <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Senha atual <input name="atual" type="password" autocomplete="current-password"></label>
       <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-auto">Nova senha (mín. 10) <input name="nova" type="password" minlength="10" autocomplete="new-password"></label>
       <button class="btn !py-2">Trocar</button>
+    </form>
+  </section>
+
+  <section class="card p-5 sm:p-6">
+    <h2 class="font-display text-2xl text-navy">5. E-mail para recuperar a senha</h2>
+    <p class="mt-2 text-sm text-navy/70">Quando você clicar em "Esqueci o usuário ou a senha", o link para criar uma nova senha vai para este e-mail.</p>
+    <form method="post" class="mt-4 flex flex-wrap gap-2 items-end">
+      <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="email">
+      <label class="grid gap-1 text-sm font-semibold text-navy w-full sm:w-80">E-mail <input name="email" type="email" required value="<?= h(ajuste('email')) ?>"></label>
+      <button class="btn !py-2">Salvar</button>
     </form>
   </section>
 <?php endif; ?>

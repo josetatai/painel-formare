@@ -8,7 +8,7 @@ ini_set('display_errors', '0');
 // Código de acesso de uso único (só o hash fica aqui; o código é entregue ao José).
 // Serve para o primeiro acesso e para redefinir usuário e senha. Depois de usado, não vale mais;
 // para uma nova redefinição, gerar outro código e trocar este hash.
-const CODIGO_PRIMEIRO_ACESSO_HASH = '$2y$10$eiRM4v2eqzvFqjY1EjXjeeNvj9H4RZqsfS7XMROiz1zpzO3g4BQy.';
+const CODIGO_PRIMEIRO_ACESSO_HASH = '$2y$10$y.r7lPpek3jX6DrSmwT/UOaIz3EwyKIWgUy1xfh2UIxjyyMZc.5Ei';
 
 // Contas de anúncio da Meta consultadas por padrão (podem ser alteradas em Ajustes).
 const META_CONTAS_PADRAO = '1163444106038891,2600827373674370';
@@ -178,6 +178,19 @@ function registrar_tentativa(): void
 {
     // Sem bloqueio por tempo: cada tentativa errada só demora 2 segundos, o que impede testar senhas em massa.
     sleep(2);
+}
+
+// Envia e-mail pelo servidor da Hostinger (remetente do próprio domínio).
+function enviar_email(string $para, string $assunto, string $texto): bool
+{
+    $de = 'contato@institutoformare.com.br';
+    $cab = "From: Painel Instituto Formare <$de>\r\nReply-To: $de\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    return @mail($para, '=?UTF-8?B?' . base64_encode($assunto) . '?=', $texto, $cab, '-f' . $de);
+}
+
+function email_valido(string $e): bool
+{
+    return (bool)filter_var($e, FILTER_VALIDATE_EMAIL);
 }
 
 function reais(?int $centavos): string
