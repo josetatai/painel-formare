@@ -101,6 +101,15 @@ if ($aba === 'links' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+if ($aba === 'vendas' && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'contatado') {
+    conferir_form();
+    $tabela = ($_POST['tipo'] ?? '') === 'carrinho' ? 'carrinhos' : 'vendas';
+    if ($tabela === 'carrinhos') db()->prepare('UPDATE carrinhos SET contatado_em = ? WHERE id = ?')->execute([date('Y-m-d H:i:s'), (int)$_POST['id']]);
+    else salvar_ajuste('contatado_' . (int)$_POST['id'], date('Y-m-d H:i:s'));
+    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '?aba=vendas'));
+    exit;
+}
+
 cabecalho($abas[$aba]);
 ?>
 <header class="bg-white shadow-sm">
@@ -530,6 +539,45 @@ cabecalho($abas[$aba]);
       <select name="situacao"><option value="">Todas</option><?php foreach ($situacoes as $x): ?><option <?= $x === $situacao ? 'selected' : '' ?>><?= h($x) ?></option><?php endforeach; ?></select></label>
     <button class="btn !py-2">Filtrar</button>
   </form>
+
+  <?php
+    // Recuperação: Pix/boleto gerado e não pago + carrinhos abandonados, dos últimos 7 dias, de quem ainda não comprou.
+    $pagos = array_column(q("SELECT DISTINCT lower(email) e FROM vendas WHERE situacao='Pago' AND email IS NOT NULL"), 'e');
+    $desde7 = date('Y-m-d H:i:s', strtotime('-7 days'));
+    $recup = [];
+    foreach (q("SELECT id, criado_em, produto, nome, email, whatsapp, pagamento FROM vendas WHERE situacao='Aguardando pagamento' AND criado_em >= ? ORDER BY criado_em DESC", [$desde7]) as $x)
+        if (!in_array(strtolower((string)$x['email']), $pagos, true)) $recup[] = $x + ['tipo' => 'venda', 'motivo' => ($x['pagamento'] ?: 'Pagamento') . ' gerado, não pago', 'contatado_em' => ajuste('contatado_' . $x['id'])];
+    foreach (q("SELECT * FROM carrinhos WHERE criado_em >= ? ORDER BY criado_em DESC", [$desde7]) as $x)
+        if (!in_array(strtolower((string)$x['email']), $pagos, true)) $recup[] = $x + ['tipo' => 'carrinho', 'motivo' => 'Abandonou o checkout', 'pagamento' => null];
+    usort($recup, fn($a, $b) => strcmp($b['criado_em'], $a['criado_em']));
+  ?>
+  <div class="card p-4 sm:p-5 bg-[#fdf3e2]">
+    <h2 class="font-display text-2xl text-navy">Recuperar vendas <span class="text-base font-sans font-bold text-navy/60">(<?= count($recup) ?> nos últimos 7 dias)</span></h2>
+    <p class="text-sm text-navy/70 mt-1">Quem gerou Pix ou boleto e não pagou, ou abandonou o checkout, e ainda não comprou. Quem pagar depois sai da lista sozinho.</p>
+    <?php if ($recup): ?>
+    <div class="overflow-x-auto mt-3"><table class="t bg-white rounded-xl">
+      <tr><th>Quando</th><th>Produto</th><th>Nome</th><th>Situação</th><th>Contato</th><th></th></tr>
+      <?php foreach ($recup as $x):
+          $wa = preg_replace('/\D/', '', (string)$x['whatsapp']); if ($wa !== '' && strlen($wa) <= 11) $wa = '55' . $wa;
+          $primeiro = trim(explode(' ', trim((string)$x['nome']))[0] ?? '');
+          $msg = 'Olá' . ($primeiro ? ', ' . $primeiro : '') . '! Aqui é do Instituto Formare. Vi que você começou a compra do ' . ($x['produto'] ?: 'nosso material') . ' e o pagamento não foi concluído. Ficou alguma dúvida? Posso te ajudar a finalizar.'; ?>
+        <tr class="<?= $x['contatado_em'] ? 'opacity-50' : '' ?>">
+          <td class="whitespace-nowrap"><?= date('d/m H:i', strtotime($x['criado_em'])) ?></td>
+          <td class="text-xs"><?= h($x['produto']) ?></td>
+          <td><?= h($x['nome']) ?></td>
+          <td class="text-xs"><?= h($x['motivo']) ?><?= $x['contatado_em'] ? '<br><strong>Contatado ' . date('d/m H:i', strtotime($x['contatado_em'])) . '</strong>' : '' ?></td>
+          <td class="whitespace-nowrap text-sm">
+            <?php if ($wa): ?><a class="btn !py-1 !px-3 !text-xs" target="_blank" rel="noopener" href="https://wa.me/<?= h($wa) ?>?text=<?= rawurlencode($msg) ?>">WhatsApp</a><?php endif; ?>
+            <?php if ($x['email']): ?><a class="btn2 !py-1 !px-3 !text-xs" href="mailto:<?= h($x['email']) ?>?subject=<?= rawurlencode('Sua compra no Instituto Formare') ?>&body=<?= rawurlencode($msg) ?>">E-mail</a><?php endif; ?>
+            <span class="block text-xs text-navy/50 mt-1"><?= h($x['whatsapp']) ?> <?= h($x['email']) ?></span>
+          </td>
+          <td><?php if (!$x['contatado_em']): ?><form method="post"><input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="contatado">
+            <input type="hidden" name="tipo" value="<?= $x['tipo'] ?>"><input type="hidden" name="id" value="<?= (int)$x['id'] ?>"><button class="text-xs underline text-navy/60">marcar contatado</button></form><?php endif; ?></td>
+        </tr>
+      <?php endforeach; ?>
+    </table></div>
+    <?php else: ?><p class="mt-3 text-sm text-navy/60">Ninguém para recuperar agora.</p><?php endif; ?>
+  </div>
 
   <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
     <?php foreach ([['Vendas pagas', numero($resumo['pagas'])], ['Faturamento', reais((int)$resumo['fat'])], ['Líquido (sua comissão)', $resumo['liq'] ? reais((int)$resumo['liq']) : '—'],

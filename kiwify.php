@@ -42,6 +42,20 @@ if (isset($d['order']) && is_array($d['order'])) $d = $d['order'];
 $pedido = (string)(pega($d, 'order_id') ?? pega($d, 'order_ref') ?? '');
 $evento = (string)(pega($d, 'webhook_event_type') ?? '');
 if ($pedido === '') {
+    // Carrinho abandonado: a pessoa preencheu os dados no checkout e não concluiu.
+    $email = strtolower(trim((string)(pega($d, 'email') ?? pega($d, 'Customer', 'email') ?? '')));
+    $tel = preg_replace('/[^0-9+]/', '', (string)(pega($d, 'phone') ?? pega($d, 'mobile') ?? pega($d, 'Customer', 'mobile') ?? ''));
+    if ($email !== '' || $tel !== '') {
+        $produto = (string)(pega($d, 'product_name') ?? pega($d, 'Product', 'product_name') ?? '');
+        db()->prepare('INSERT INTO carrinhos (chave, criado_em, produto, nome, email, whatsapp, link_checkout) VALUES (?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(chave) DO UPDATE SET criado_em = excluded.criado_em, nome = excluded.nome, whatsapp = excluded.whatsapp, link_checkout = excluded.link_checkout')
+            ->execute([(string)(pega($d, 'id') ?? pega($d, 'checkout_id') ?? ($email . '|' . $produto)), data_kiwify(pega($d, 'created_at')) ?? date('Y-m-d H:i:s'),
+                $produto, mb_substr((string)(pega($d, 'name') ?? pega($d, 'Customer', 'full_name') ?? ''), 0, 120), mb_substr($email, 0, 160),
+                mb_substr($tel, 0, 20), mb_substr((string)(pega($d, 'checkout_link') ?? ''), 0, 300) ?: null]);
+        registrar_aviso(null, 'carrinho_abandonado', true, 'Carrinho abandonado');
+        http_response_code(200);
+        exit;
+    }
     registrar_aviso(null, $evento, false, 'Aviso sem número de pedido (ex.: carrinho abandonado)');
     http_response_code(200);
     exit;
