@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 date_default_timezone_set('America/Sao_Paulo');
 ini_set('display_errors', '0');
+// O painel nunca pode ficar guardado no cache do CDN da Hostinger nem do navegador.
+if (!headers_sent()) { header('Cache-Control: no-store, no-cache, must-revalidate, private'); header('Pragma: no-cache'); header('CDN-Cache-Control: no-store'); }
 
 // Código de acesso de uso único (só o hash fica aqui; o código é entregue ao José).
 // Serve para o primeiro acesso e para redefinir usuário e senha. Depois de usado, não vale mais;
