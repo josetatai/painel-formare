@@ -1,5 +1,6 @@
 # Painel Instituto Formare
 DirectoryIndex index.php
+AddType application/manifest+json .webmanifest
 Options -Indexes
 
 <IfModule mod_rewrite.c>
