@@ -460,6 +460,22 @@ cabecalho($abas[$aba]);
   </section>
 
   <?php foreach ($m['erros'] ?? [] as $e): ?><div class="card p-4 text-coral font-semibold"><?= h($e) ?></div><?php endforeach; ?>
+  <?php if (!empty($m['erros']) && empty($m['linhas'])):
+      $bloq = (bool)array_filter($m['erros'], fn($e) => stripos($e, 'blocked') !== false || stripos($e, 'bloque') !== false); ?>
+  <div class="card p-5 sm:p-6">
+    <h2 class="font-display text-2xl text-navy">Não foi possível ler as campanhas agora</h2>
+    <p class="mt-2 text-navy/80">A Meta recusou a leitura dos dados. Os números ficam escondidos até a leitura voltar, para não mostrar zeros que não são reais. Suas campanhas continuam rodando normalmente: isso afeta só a leitura do painel.</p>
+    <?php if ($bloq): ?>
+    <p class="mt-3 font-semibold text-navy">O que fazer ("API access blocked"):</p>
+    <ol class="mt-2 list-decimal pl-5 text-sm text-navy/80 space-y-1">
+      <li>Abra <strong>developers.facebook.com/apps</strong>, entre no app <strong>Painel Formare</strong> e veja se há algum aviso ou restrição no painel do app (sino de alertas).</li>
+      <li>Em <strong>Configurações do app → Básico</strong>, confira se o app está ligado ao portfólio <strong>Instituto Formare</strong> e se os campos obrigatórios (política de privacidade, categoria) estão preenchidos.</li>
+      <li>Se houver restrição, gere um <strong>novo token</strong> no usuário do sistema "Painel Formare" e cole em Ajustes.</li>
+    </ol>
+    <?php endif; ?>
+    <a class="btn2 mt-4" href="<?= h(link_aba('campanhas', ['atualizar' => 1])) ?>">Tentar de novo</a>
+  </div>
+  <?php else: ?>
   <?php if (isset($m['erro'])): ?><div class="card p-4 text-coral font-semibold"><?= h($m['erro']) ?></div><?php endif; ?>
 
   <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
@@ -605,6 +621,8 @@ cabecalho($abas[$aba]);
       <?php if (!$linhas && empty($m['erros']) && empty($m['erro'])): ?><tr><td colspan="11" class="text-navy/50">Nenhuma campanha com gasto neste período.</td></tr><?php endif; ?>
     </table>
   </div>
+
+  <?php endif; // erro da Meta ?>
 
 <?php elseif ($aba === 'vendas'):
     $produto = (string)($_GET['produto'] ?? '');
