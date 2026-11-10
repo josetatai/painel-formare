@@ -7,6 +7,8 @@ exigir_login();
 
 $abas = ['paginas' => 'Landing pages', 'links' => 'Links', 'campanhas' => 'Campanhas', 'vendas' => 'Vendas', 'recuperacao' => 'Recuperação de carrinho', 'ajustes' => 'Ajustes'];
 const MSG_RECUPERACAO_PADRAO = 'Olá, {nome}! Aqui é do Instituto Formare. Vi que você começou a compra do {produto} e o pagamento não foi concluído. Ficou alguma dúvida? Posso te ajudar a finalizar.';
+// Fechamento colocado sempre no fim das mensagens de recuperação.
+const MSG_RECUPERACAO_FECHO = "Agradecemos pelo contato e pela confiança.\n\nEquipe Instituto Formare";
 $aba = $_GET['aba'] ?? 'paginas';
 if (!isset($abas[$aba])) $aba = 'paginas';
 
@@ -384,7 +386,7 @@ cabecalho($abas[$aba]);
     <form method="post" class="mt-3 grid gap-2">
       <input type="hidden" name="csrf" value="<?= h(token_form()) ?>"><input type="hidden" name="acao" value="modelo">
       <textarea name="modelo" rows="3" class="border border-[#D5DCE6] rounded-xl p-3 text-sm"><?= h($modelo) ?></textarea>
-      <p class="text-xs text-navy/60">Use <strong>{nome}</strong> para o primeiro nome e <strong>{produto}</strong> para o produto. Cada mensagem pode ser ajustada antes de enviar.</p>
+      <p class="text-xs text-navy/60">Use <strong>{nome}</strong> para o primeiro nome e <strong>{produto}</strong> para o produto. O fechamento "Agradecemos pelo contato e pela confiança. Equipe Instituto Formare" entra sozinho no fim. Cada mensagem pode ser ajustada antes de enviar.</p>
       <button class="btn !py-2 justify-self-start">Salvar mensagem padrão</button>
     </form>
   </details>
@@ -396,7 +398,8 @@ cabecalho($abas[$aba]);
       $primeiro = trim(explode(' ', trim((string)$x['nome']))[0] ?? '');
       $primeiro = $primeiro !== '' ? mb_convert_case(mb_strtolower($primeiro), MB_CASE_TITLE) : '';
       $texto = str_replace(['{nome}', '{produto}'], [$primeiro ?: 'tudo bem', $x['produto'] ?: 'nosso material'], $modelo);
-      $texto = str_replace('Olá, tudo bem!', 'Olá, tudo bem?', $texto); ?>
+      $texto = str_replace('Olá, tudo bem!', 'Olá, tudo bem?', $texto);
+      if (stripos($texto, 'Equipe Instituto Formare') === false) $texto = rtrim($texto) . "\n\n" . MSG_RECUPERACAO_FECHO; ?>
     <article class="card p-4 sm:p-5 grid lg:grid-cols-[1fr_1.4fr] gap-4 <?= $x['contatado_em'] ? 'opacity-60' : '' ?>">
       <div>
         <p class="font-bold text-navy text-lg"><?= h($x['nome'] ?: 'Sem nome') ?></p>
@@ -407,7 +410,7 @@ cabecalho($abas[$aba]);
         <?php if ($x['contatado_em']): ?><p class="text-xs font-bold text-leaf mt-2">✓ Contatado em <?= date('d/m H:i', strtotime($x['contatado_em'])) ?></p><?php endif; ?>
       </div>
       <div class="grid gap-2">
-        <textarea rows="4" class="js-msg border border-[#D5DCE6] rounded-xl p-3 text-sm"><?= h($texto) ?></textarea>
+        <textarea rows="6" class="js-msg border border-[#D5DCE6] rounded-xl p-3 text-sm"><?= h($texto) ?></textarea>
         <div class="flex flex-wrap gap-2">
           <?php if ($wa): ?><button type="button" class="btn js-wa" data-tel="<?= h($wa) ?>" data-tipo="<?= $x['tipo'] ?>" data-id="<?= (int)$x['id'] ?>">Enviar no WhatsApp</button><?php endif; ?>
           <?php if ($x['email']): ?><button type="button" class="btn2 js-mail" data-email="<?= h($x['email']) ?>" data-tipo="<?= $x['tipo'] ?>" data-id="<?= (int)$x['id'] ?>">Enviar por e-mail</button><?php endif; ?>
