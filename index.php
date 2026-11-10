@@ -129,7 +129,7 @@ cabecalho($abas[$aba]);
     </div>
     <div class="flex items-center gap-3 text-sm">
       <span class="text-navy/60 hidden sm:inline">Olá, <?= h(ajuste('usuario')) ?></span>
-      <a href="sair.php" class="btn2 !py-1.5">Sair</a>
+      <a href="sair.php?t=<?= time() ?>" class="btn2 !py-1.5">Sair</a>
     </div>
   </div>
   <nav class="max-w-7xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto">
