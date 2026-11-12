@@ -173,6 +173,10 @@ cabecalho($abas[$aba]);
     $secoesNomes = ['inicio' => 'Início', 'para-quem' => 'Para quem é', 'por-que' => 'Por que importa', 'volumes' => 'O que você leva',
         'modelos' => 'Modelos', 'bonus' => 'Bônus', 'espie' => 'Espie por dentro', 'acesso' => 'Como funciona o acesso',
         'oferta' => 'Preço (bloco de compra)', 'garantia' => 'Garantia', 'faq' => 'Perguntas', 'final' => 'Convite final'];
+    // Seções da página nova (escura) do Livro Digital
+    $secoesNovas = ['inicio' => 'Início (gancho)', 'dor' => 'A dor e o teste', 'promessa' => 'Promessa', 'mecanismo' => 'Como funciona',
+        'volumes' => 'O que você leva', 'modelos' => 'Modelos', 'bonus' => 'Bônus', 'espie' => 'Espie por dentro',
+        'confianca' => 'Por que confiar', 'oferta' => 'Preço (bloco de compra)', 'faq' => 'Perguntas', 'final' => 'Convite final'];
 ?>
   <section>
     <h1 class="font-display text-3xl text-navy">Landing pages</h1>
@@ -219,7 +223,12 @@ cabecalho($abas[$aba]);
       <div>
         <h3 class="font-bold text-navy">Até onde as pessoas leem</h3>
         <div class="mt-3 space-y-2">
-          <?php foreach ($secoesNomes as $k => $n): $x = (int)($funilMap[$k] ?? 0); ?>
+          <?php
+            $novaPg = isset($funilMap['dor']) || isset($funilMap['promessa']) || isset($funilMap['mecanismo']) || isset($funilMap['confianca']);
+            $mapa = $novaPg ? $secoesNovas : $secoesNomes;
+            foreach (($novaPg ? $secoesNomes : $secoesNovas) as $k2 => $n2) if (!isset($mapa[$k2]) && !empty($funilMap[$k2])) $mapa[$k2] = $n2 . ' (versão anterior)';
+          ?>
+          <?php foreach ($mapa as $k => $n): $x = (int)($funilMap[$k] ?? 0); ?>
             <div class="grid grid-cols-[170px_1fr_90px] items-center gap-2 text-sm">
               <span class="text-navy/80"><?= $n ?></span>
               <div class="bg-navy/5 rounded-full"><div class="barra" style="width: <?= $v ? min(100, round(100 * $x / $v)) : 0 ?>%"></div></div>
